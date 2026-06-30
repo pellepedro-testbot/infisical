@@ -62,7 +62,7 @@ export const registerSecretArchiveRouter = async (server: FastifyZodProvider) =>
       operationId: "archiveSecret",
       description: "Archive a secret (soft-delete)",
       params: z.object({
-        secretId: z.string().trim().min(1)
+        secretId: z.string().trim().uuid()
       }),
       body: z.object({
         projectId: z.string().trim().min(1)
@@ -103,7 +103,7 @@ export const registerSecretArchiveRouter = async (server: FastifyZodProvider) =>
       operationId: "restoreSecret",
       description: "Restore an archived secret",
       params: z.object({
-        secretId: z.string().trim().min(1)
+        secretId: z.string().trim().uuid()
       }),
       body: z.object({
         projectId: z.string().trim().min(1)
@@ -144,7 +144,7 @@ export const registerSecretArchiveRouter = async (server: FastifyZodProvider) =>
       operationId: "deleteArchivedSecretPermanently",
       description: "Permanently delete an archived secret",
       params: z.object({
-        secretId: z.string().trim().min(1)
+        secretId: z.string().trim().uuid()
       }),
       body: z.object({
         projectId: z.string().trim().min(1)
