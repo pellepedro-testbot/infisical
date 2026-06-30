@@ -36,7 +36,6 @@ import { registerDeprecatedProjectMembershipRouter } from "./deprecated-project-
 import { registerDeprecatedProjectRouter } from "./deprecated-project-router";
 import { registerDeprecatedSecretFolderRouter } from "./deprecated-secret-folder-router";
 import { registerDeprecatedSecretImportRouter } from "./deprecated-secret-import-router";
-import { registerDeprecatedSecretTagRouter } from "./deprecated-secret-tag-router";
 import { registerEventRouter } from "./event-router";
 import { registerExternalGroupOrgRoleMappingRouter } from "./external-group-org-role-mapping-router";
 import { registerGitHubAppRouter } from "./github-app-router";
@@ -160,7 +159,6 @@ export const registerV1Routes = async (server: FastifyZodProvider) => {
       // depreciated completed in use
       await projectRouter.register(registerProjectKeyRouter);
       await projectRouter.register(registerDeprecatedProjectMembershipRouter);
-      await projectRouter.register(registerDeprecatedSecretTagRouter);
     },
     { prefix: "/workspace" }
   );
