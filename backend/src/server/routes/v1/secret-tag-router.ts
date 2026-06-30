@@ -44,6 +44,38 @@ export const registerSecretTagRouter = async (server: FastifyZodProvider) => {
 
   server.route({
     method: "GET",
+    url: "/:projectId/tags/count",
+    config: {
+      rateLimit: readLimit
+    },
+    schema: {
+      hide: false,
+      operationId: "countSecretTags",
+      tags: [ApiDocsTags.Folders],
+      params: z.object({
+        projectId: z.string().trim().describe(SECRET_TAGS.LIST.projectId)
+      }),
+      response: {
+        200: z.object({
+          count: z.number()
+        })
+      }
+    },
+    onRequest: verifyAuth([AuthMode.JWT, AuthMode.IDENTITY_ACCESS_TOKEN]),
+    handler: async (req) => {
+      const tags = await server.services.secretTag.getProjectTags({
+        actor: req.permission.type,
+        actorId: req.permission.id,
+        actorAuthMethod: req.permission.authMethod,
+        actorOrgId: req.permission.orgId,
+        projectId: req.params.projectId
+      });
+      return { count: tags.length };
+    }
+  });
+
+  server.route({
+    method: "GET",
     url: "/:projectId/tags/:tagId",
     config: {
       rateLimit: readLimit
