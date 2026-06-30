@@ -1,0 +1,132 @@
+[
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "{\"projectName\": \"testbot-tags-removal-test\", \"type\": \"secret-manager\"}",
+    "ResponseBody": "{\"project\": {\"id\": \"7f3f9c29-5b71-4a0e-b8c2-d94e1f2e3a56\", \"name\": \"testbot-tags-removal-test\"}}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Authorization": [
+        "Bearer SKYRAMP_PLACEHOLDER_TOKEN"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "POST",
+    "Path": "/api/v1/projects",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-06-30T01:47:12.587Z",
+    "Scheme": "http"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "{\"slug\": \"removal-test-tag\", \"color\": \"#FF5733\"}",
+    "ResponseBody": "{\"workspaceTag\": {\"id\": \"3a1b8d0e-6c2f-4e93-a71d-9b8c5e4f2d1a\", \"slug\": \"removal-test-tag\", \"color\": \"#FF5733\"}}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Authorization": [
+        "Bearer SKYRAMP_PLACEHOLDER_TOKEN"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "POST",
+    "Path": "/api/v1/projects/7f3f9c29-5b71-4a0e-b8c2-d94e1f2e3a56/tags",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-06-30T01:47:12.587Z",
+    "Scheme": "http"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{\"workspaceTags\": [{\"id\": \"3a1b8d0e-6c2f-4e93-a71d-9b8c5e4f2d1a\"}]}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Authorization": [
+        "Bearer SKYRAMP_PLACEHOLDER_TOKEN"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "GET",
+    "Path": "/api/v1/projects/7f3f9c29-5b71-4a0e-b8c2-d94e1f2e3a56/tags",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-06-30T01:47:12.587Z",
+    "Scheme": "http"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{\"workspaceTag\": {\"id\": \"3a1b8d0e-6c2f-4e93-a71d-9b8c5e4f2d1a\"}}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Authorization": [
+        "Bearer SKYRAMP_PLACEHOLDER_TOKEN"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "DELETE",
+    "Path": "/api/v1/projects/7f3f9c29-5b71-4a0e-b8c2-d94e1f2e3a56/tags/3a1b8d0e-6c2f-4e93-a71d-9b8c5e4f2d1a",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-06-30T01:47:12.587Z",
+    "Scheme": "http"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Authorization": [
+        "Bearer SKYRAMP_PLACEHOLDER_TOKEN"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "DELETE",
+    "Path": "/api/v1/projects/7f3f9c29-5b71-4a0e-b8c2-d94e1f2e3a56",
+    "QueryParams": {},
+    "StatusCode": 204,
+    "Port": 8080,
+    "Timestamp": "2026-06-30T01:47:12.587Z",
+    "Scheme": "http"
+  }
+]
