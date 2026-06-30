@@ -53,7 +53,11 @@ export const registerWebhookRouter = async (server: FastifyZodProvider) => {
           type: z.nativeEnum(WebhookType).default(WebhookType.GENERAL),
           projectId: z.string().trim(),
           environment: z.string().trim(),
-          webhookUrl: z.string().url().trim(),
+          webhookUrl: z
+            .string()
+            .url()
+            .trim()
+            .refine((url) => url.startsWith("https://"), { message: "Webhook URL must use HTTPS" }),
           webhookSecretKey: z.string().trim().optional(),
           secretPath: z.string().trim().default("/").transform(removeTrailingSlash),
           eventsFilter: z
@@ -142,6 +146,12 @@ export const registerWebhookRouter = async (server: FastifyZodProvider) => {
       body: z
         .object({
           isDisabled: z.boolean().optional(),
+          webhookUrl: z
+            .string()
+            .url()
+            .trim()
+            .refine((url) => url.startsWith("https://"), { message: "Webhook URL must use HTTPS" })
+            .optional(),
           eventsFilter: z
             .array(
               z.object({
@@ -153,8 +163,8 @@ export const registerWebhookRouter = async (server: FastifyZodProvider) => {
             )
             .optional()
         })
-        .refine(({ isDisabled, eventsFilter }) => {
-          return isDisabled !== undefined || eventsFilter !== undefined;
+        .refine(({ isDisabled, eventsFilter, webhookUrl }) => {
+          return isDisabled !== undefined || eventsFilter !== undefined || webhookUrl !== undefined;
         }, "At least one field is required"),
       response: {
         200: z.object({
