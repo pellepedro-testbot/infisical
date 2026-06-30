@@ -23,22 +23,29 @@ export const registerSecretTagRouter = async (server: FastifyZodProvider) => {
       params: z.object({
         projectId: z.string().trim().describe(SECRET_TAGS.LIST.projectId)
       }),
+      querystring: z.object({
+        offset: z.coerce.number().min(0).default(0),
+        limit: z.coerce.number().min(1).max(100).default(100)
+      }),
       response: {
         200: z.object({
-          tags: SecretTagsSchema.array()
+          tags: SecretTagsSchema.array(),
+          totalCount: z.number()
         })
       }
     },
     onRequest: verifyAuth([AuthMode.JWT, AuthMode.IDENTITY_ACCESS_TOKEN]),
     handler: async (req) => {
-      const tags = await server.services.secretTag.getProjectTags({
+      const allTags = await server.services.secretTag.getProjectTags({
         actor: req.permission.type,
         actorId: req.permission.id,
         actorAuthMethod: req.permission.authMethod,
         actorOrgId: req.permission.orgId,
         projectId: req.params.projectId
       });
-      return { tags };
+      const { offset, limit } = req.query;
+      const tags = allTags.slice(offset, offset + limit);
+      return { tags, totalCount: allTags.length };
     }
   });
 
