@@ -88,10 +88,13 @@ import {
   reshapeBridgeSecret
 } from "./secret-v2-bridge-fns";
 import {
+  SecretOperations,
   SecretUpdateMode,
+  TArchiveSecretDTO,
   TBackFillSecretReferencesDTO,
   TCreateManySecretDTO,
   TCreateSecretDTO,
+  TDeleteArchivedSecretDTO,
   TDeleteManySecretDTO,
   TDeleteSecretDTO,
   TDispatchSecretMoveSideEffectsDTO,
@@ -101,7 +104,9 @@ import {
   TGetSecretsDTO,
   TGetSecretsRawByFolderMappingsDTO,
   TGetSecretVersionsDTO,
+  TListArchivedSecretsDTO,
   TMoveSecretsDTO,
+  TRestoreSecretDTO,
   TSecretReference,
   TUpdateManySecretDTO,
   TUpdateSecretDTO
@@ -3705,6 +3710,167 @@ export const secretV2BridgeServiceFactory = ({
     };
   };
 
+  const archiveSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TArchiveSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+
+    const folder = await folderDAL.findById(secret.folderId);
+    if (!folder) throw new NotFoundError({ message: "Folder not found" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    const secretPath = folderPath?.[0]?.path || "/";
+    const envSlug = folderPath?.[0]?.environmentSlug || "";
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Delete,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    const [updatedSecret] = await secretDAL.update(
+      { id: secretId },
+      { archivedAt: new Date() }
+    );
+
+    await secretDAL.invalidateSecretCacheByProjectId(projectId);
+
+    return updatedSecret;
+  };
+
+  const restoreSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TRestoreSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+    if (!secret.archivedAt) throw new BadRequestError({ message: "Secret is not archived" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    const secretPath = folderPath?.[0]?.path || "/";
+    const envSlug = folderPath?.[0]?.environmentSlug || "";
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Create,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    const [updatedSecret] = await secretDAL.update(
+      { id: secretId },
+      { archivedAt: null }
+    );
+
+    await secretDAL.invalidateSecretCacheByProjectId(projectId);
+
+    return updatedSecret;
+  };
+
+  const listArchivedSecrets = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    environment,
+    secretPath
+  }: TListArchivedSecretsDTO) => {
+    await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const folder = await folderDAL.findBySecretPath(projectId, environment, secretPath);
+    if (!folder)
+      throw new NotFoundError({
+        message: `Folder with path '${secretPath}' in environment '${environment}' not found`
+      });
+
+    const archivedSecrets = await secretDAL.findArchivedByFolderId(folder.id);
+    return archivedSecrets;
+  };
+
+  const deleteArchivedSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TDeleteArchivedSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+    if (!secret.archivedAt) throw new BadRequestError({ message: "Secret is not archived" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    const secretPath = folderPath?.[0]?.path || "/";
+    const envSlug = folderPath?.[0]?.environmentSlug || "";
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Delete,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    await secretDAL.deleteById(secretId);
+    await secretDAL.invalidateSecretCacheByProjectId(projectId);
+
+    return secret;
+  };
+
   return {
     createSecret,
     deleteSecret,
@@ -3729,6 +3895,10 @@ export const secretV2BridgeServiceFactory = ({
     getSecretVersionsByIds,
     findSecretIdsByFolderIdAndKeys,
     $validateSecretReferences,
-    redactSecretVersionValue
+    redactSecretVersionValue,
+    archiveSecret,
+    restoreSecret,
+    listArchivedSecrets,
+    deleteArchivedSecret
   };
 };
