@@ -4,6 +4,8 @@ import { userEngagementLimit } from "@app/server/config/rateLimiter";
 import { verifyAuth } from "@app/server/plugins/auth/verify-auth";
 import { AuthMode } from "@app/services/auth/auth-type";
 
+// registerUserEngagementRouter wires the user engagement routes onto the given server.
+// Currently exposes a single wish-creation endpoint used for collecting product feedback.
 export const registerUserEngagementRouter = async (server: FastifyZodProvider) => {
   server.route({
     method: "POST",
