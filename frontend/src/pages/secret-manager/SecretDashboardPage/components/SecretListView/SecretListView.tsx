@@ -22,7 +22,6 @@ import { AddShareSecretModal } from "@app/pages/organization/SecretSharingPage/c
 import {
   PendingSecretChange,
   PendingSecretCreate,
-  PendingSecretDelete,
   PendingSecretUpdate,
   useBatchMode,
   useBatchModeActions,
@@ -483,16 +482,7 @@ export const SecretListView = ({
   );
 
   const handleSecretDelete = useCallback(async () => {
-    const {
-      key,
-      id: secretId,
-      value,
-      secretValueHidden,
-      tags,
-      secretMetadata,
-      skipMultilineEncoding,
-      comment
-    } = popUp.deleteSecret?.data as SecretV3RawSanitized;
+    const { id: secretId } = popUp.deleteSecret?.data as SecretV3RawSanitized;
     await archiveSecret({ secretId: secretId!, projectId, environment, secretPath });
     handlePopUpClose("deleteSecret");
     handlePopUpClose("secretDetail");
