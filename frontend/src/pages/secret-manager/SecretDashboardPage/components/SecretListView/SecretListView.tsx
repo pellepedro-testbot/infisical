@@ -493,34 +493,6 @@ export const SecretListView = ({
       skipMultilineEncoding,
       comment
     } = popUp.deleteSecret?.data as SecretV3RawSanitized;
-    if (isBatchMode) {
-      const secretValueForDelete = value !== undefined ? value : HIDDEN_SECRET_VALUE_API_MASK;
-
-      const deleteChange: PendingSecretDelete = {
-        id: `${secretId}`,
-        type: PendingAction.Delete,
-        secretKey: key,
-        secretValue: secretValueForDelete,
-        timestamp: Date.now(),
-        resourceType: "secret",
-        secretValueHidden,
-        tags: tags || [],
-        secretMetadata: secretMetadata || [],
-        skipMultilineEncoding: skipMultilineEncoding || false,
-        comment: comment || ""
-      };
-
-      addPendingChange(deleteChange, {
-        projectId,
-        environment,
-        secretPath
-      });
-
-      handlePopUpClose("deleteSecret");
-      handlePopUpClose("secretDetail");
-      return;
-    }
-
     await archiveSecret({ secretId: secretId!, projectId, environment, secretPath });
     handlePopUpClose("deleteSecret");
     handlePopUpClose("secretDetail");
