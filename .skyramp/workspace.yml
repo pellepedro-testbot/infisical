@@ -5,6 +5,7 @@ workspace:
 metadata:
   schemaVersion: v1
   executorVersion: v1.3.30
+  mcpVersion: next
   createdAt: "2026-06-30T00:01:56.155Z"
   updatedAt: "2026-06-30T00:01:56.161Z"
 services:
@@ -19,7 +20,6 @@ services:
       baseUrl: http://localhost:8080
     runtimeDetails:
       serverStartCommand: docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . up -d --build backend nginx
-      serverStopCommand: docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . stop backend nginx
       runtime: docker
       dockerNetwork: infisical_default
   - serviceName: infisical-frontend
@@ -32,6 +32,5 @@ services:
       baseUrl: http://localhost:8080
     runtimeDetails:
       serverStartCommand: docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . up -d --build frontend nginx
-      serverStopCommand: docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . stop frontend nginx
       runtime: docker
       dockerNetwork: infisical_default
