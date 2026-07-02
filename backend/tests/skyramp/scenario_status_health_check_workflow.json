@@ -1,0 +1,48 @@
+[
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{\"message\": \"Ok\"}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "GET",
+    "Path": "/api/status",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-07-02T14:23:44.166Z",
+    "Scheme": "http"
+  },
+  {
+    "Source": "192.168.65.1:39998",
+    "Destination": "localhost",
+    "RequestBody": "",
+    "ResponseBody": "{\"ping\": \"pong\"}",
+    "RequestHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "ResponseHeaders": {
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "Method": "GET",
+    "Path": "/api/status/ping",
+    "QueryParams": {},
+    "StatusCode": 200,
+    "Port": 8080,
+    "Timestamp": "2026-07-02T14:23:44.166Z",
+    "Scheme": "http"
+  }
+]
