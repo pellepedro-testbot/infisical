@@ -1,0 +1,62 @@
+name: Skyramp Testbot
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.actor != 'skyramp-testbot[bot]' }}
+
+jobs:
+  testbot:
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@skyramp-testbot') && github.event.comment.user.login != 'skyramp-testbot[bot]')
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: skyramp-testbot-app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ secrets.SKYRAMP_TESTBOT_APP_ID }}
+          private-key: ${{ secrets.SKYRAMP_TESTBOT_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.skyramp-testbot-app-token.outputs.token }}
+
+      - name: Create .env for SUT
+        run: |
+          cp .env.dev.example .env
+          sed -i "s#ENCRYPTION_KEY=.*#ENCRYPTION_KEY=6c1fe4e407b8911c104518103505b218#" .env
+          sed -i "s#SMTP_HOST=.*#SMTP_HOST=#" .env
+          sed -i "s#SMTP_PORT=.*#SMTP_PORT=#" .env
+          sed -i "s#SMTP_FROM_ADDRESS=.*#SMTP_FROM_ADDRESS=#" .env
+          sed -i "s#SMTP_FROM_NAME=.*#SMTP_FROM_NAME=#" .env
+
+      - name: Build frontend production image
+        run: docker build -f frontend/Dockerfile.prd -t infisical-frontend:prd ./frontend
+
+      - uses: skyramp/testbot@eval-sut
+        with:
+          skyrampLicenseFile: ${{ secrets.SKYRAMP_LICENSE_FILE }}
+          anthropicApiKey: ${{ secrets.SKYRAMP_TESTBOT_API_KEY }}
+          githubToken: ${{ steps.skyramp-testbot-app-token.outputs.token }}
+          skyrampMcpVersion: next
+          sutSetupMode: 'none'
+          targetSetupCommand: 'docker system prune -f --filter "until=1h" || true && docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . up -d --build'
+          targetReadyCheckCommand: 'curl -sf http://localhost:8080/api/status && curl -sf http://localhost:8080 | grep -q "root"'
+          targetReadyCheckTimeout: '1800'
+          targetReadyCheckDiagnosticsCommand: 'docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . ps && docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . logs --tail=100'
+          authTokenCommand: 'bash .skyramp/sut/get-auth-token.sh'
+          uiCredentials: 'username=admin@test.com;password=Password123!;role=admin'
+          targetTeardownCommand: 'docker compose -f .skyramp/sut/docker-compose.testbot.yml --project-directory . down -v && docker system prune -f --filter "until=1h" || true'
