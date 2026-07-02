@@ -4063,6 +4063,24 @@ export const registerRoutes = async (
     }
   });
 
+  server.route({
+    method: "GET",
+    url: "/api/status/ping",
+    config: {
+      rateLimit: readLimit
+    },
+    schema: {
+      response: {
+        200: z.object({
+          ping: z.string()
+        })
+      }
+    },
+    handler: async () => {
+      return { ping: "pong" };
+    }
+  });
+
   // register special routes
   await server.register(registerCertificateEstRouter, { prefix: "/.well-known/est" });
   await server.register(registerPkiScepRouter, { prefix: "/scep" });
