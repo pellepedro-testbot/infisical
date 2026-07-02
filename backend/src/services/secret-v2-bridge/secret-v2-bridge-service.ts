@@ -89,9 +89,11 @@ import {
 } from "./secret-v2-bridge-fns";
 import {
   SecretUpdateMode,
+  TArchiveSecretDTO,
   TBackFillSecretReferencesDTO,
   TCreateManySecretDTO,
   TCreateSecretDTO,
+  TDeleteArchivedSecretDTO,
   TDeleteManySecretDTO,
   TDeleteSecretDTO,
   TDispatchSecretMoveSideEffectsDTO,
@@ -101,7 +103,9 @@ import {
   TGetSecretsDTO,
   TGetSecretsRawByFolderMappingsDTO,
   TGetSecretVersionsDTO,
+  TListArchivedSecretsDTO,
   TMoveSecretsDTO,
+  TRestoreSecretDTO,
   TSecretReference,
   TUpdateManySecretDTO,
   TUpdateSecretDTO
@@ -3703,6 +3707,237 @@ export const secretV2BridgeServiceFactory = ({
     };
   };
 
+  const archiveSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TArchiveSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+    // Mirror deleteSecret's guard: the dashboard now routes the normal delete action
+    // through archiveSecret, so without this a honey token could be soft-deleted from
+    // the UI, bypassing the existing safety guard.
+    if (secret.isHoneyTokenSecret)
+      throw new BadRequestError({ message: "Cannot delete honey token secrets" });
+
+    const folder = await folderDAL.findById(secret.folderId);
+    if (!folder) throw new NotFoundError({ message: "Folder not found" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    // Fail closed: an empty result means the secret's folder does not belong to the
+    // caller-supplied projectId (cross-project IDOR). Reject instead of defaulting the
+    // permission subject to "/" + "" (which would pass the CASL check).
+    if (!folderPath?.[0]) throw new NotFoundError({ message: "Secret not found" });
+    const secretPath = folderPath[0].path;
+    const envSlug = folderPath[0].environmentSlug;
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Delete,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    const [updatedSecret] = await secretDAL.update(
+      { id: secretId },
+      { archivedAt: new Date() }
+    );
+
+    await secretDAL.invalidateSecretCacheByProjectId(projectId);
+
+    return updatedSecret;
+  };
+
+  const restoreSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TRestoreSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+    if (!secret.archivedAt) throw new BadRequestError({ message: "Secret is not archived" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    // Fail closed: an empty result means the secret's folder does not belong to the
+    // caller-supplied projectId (cross-project IDOR). Reject instead of defaulting the
+    // permission subject to "/" + "" (which would pass the CASL check).
+    if (!folderPath?.[0]) throw new NotFoundError({ message: "Secret not found" });
+    const secretPath = folderPath[0].path;
+    const envSlug = folderPath[0].environmentSlug;
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Create,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    const [updatedSecret] = await secretDAL.update(
+      { id: secretId },
+      { archivedAt: null }
+    );
+
+    await secretDAL.invalidateSecretCacheByProjectId(projectId);
+
+    return updatedSecret;
+  };
+
+  const listArchivedSecrets = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    environment,
+    secretPath
+  }: TListArchivedSecretsDTO) => {
+    await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const folder = await folderDAL.findBySecretPath(projectId, environment, secretPath);
+    if (!folder)
+      throw new NotFoundError({
+        message: `Folder with path '${secretPath}' in environment '${environment}' not found`
+      });
+
+    const archivedSecrets = await secretDAL.findArchivedByFolderId(folder.id);
+    return archivedSecrets;
+  };
+
+  const deleteArchivedSecret = async ({
+    actor,
+    actorId,
+    actorOrgId,
+    actorAuthMethod,
+    projectId,
+    secretId
+  }: TDeleteArchivedSecretDTO) => {
+    const { permission } = await permissionService.getProjectPermission({
+      actor,
+      actorId,
+      projectId,
+      actorAuthMethod,
+      actorOrgId,
+      actionProjectType: ActionProjectType.SecretManager
+    });
+
+    const secret = await secretDAL.findById(secretId);
+    if (!secret) throw new NotFoundError({ message: "Secret not found" });
+    if (!secret.archivedAt) throw new BadRequestError({ message: "Secret is not archived" });
+
+    const folderPath = await folderDAL.findSecretPathByFolderIds(projectId, [secret.folderId]);
+    // Fail closed: an empty result means the secret's folder does not belong to the
+    // caller-supplied projectId (cross-project IDOR). Reject instead of defaulting the
+    // permission subject to "/" + "" (which would pass the CASL check).
+    if (!folderPath?.[0]) throw new NotFoundError({ message: "Secret not found" });
+    const secretPath = folderPath[0].path;
+    const envSlug = folderPath[0].environmentSlug;
+
+    ForbiddenError.from(permission).throwUnlessCan(
+      ProjectPermissionSecretActions.Delete,
+      subject(ProjectPermissionSub.Secrets, {
+        environment: envSlug,
+        secretPath,
+        secretName: secret.key,
+        secretTags: []
+      })
+    );
+
+    // Route permanent deletion through the same pipeline as deleteSecret instead of a
+    // bare deleteById: create a folder snapshot, notify secret-sync/webhook integrations,
+    // and translate FK violations (e.g. an active secret-rotation mapping) into a
+    // user-facing error rather than a raw 500.
+    const folder = await folderDAL.findBySecretPath(projectId, envSlug, secretPath);
+    if (!folder) throw new NotFoundError({ message: "Folder not found" });
+
+    try {
+      await secretDAL.transaction(async (tx) => {
+        await fnSecretBulkDelete({
+          projectId,
+          folderId: folder.id,
+          actorId,
+          actorType: actor,
+          folderCommitService,
+          secretVersionDAL,
+          secretDAL,
+          secretQueueService,
+          inputSecrets: [{ type: secret.type as SecretType, secretKey: secret.key }],
+          tx
+        });
+        await secretDAL.invalidateSecretCacheByProjectId(projectId, tx);
+      });
+
+      await snapshotService.performSnapshot(folder.id);
+      await secretQueueService.syncSecrets({
+        secretPath,
+        actorId,
+        actor,
+        projectId,
+        orgId: actorOrgId,
+        environmentSlug: folder.environment.slug,
+        environmentName: folder.environment.name,
+        events: [
+          {
+            type: ProjectEvents.SecretDelete,
+            environment: folder.environment.slug,
+            secretPath,
+            projectId,
+            secretKeys: [secret.key]
+          }
+        ]
+      });
+
+      return secret;
+    } catch (err) {
+      // deferred errors aren't returned as DatabaseError
+      const error = err as { code: string; table: string };
+      if (
+        error?.code === DatabaseErrorCode.ForeignKeyViolation &&
+        error?.table === TableName.SecretRotationV2SecretMapping
+      ) {
+        throw new BadRequestError({ message: "Cannot delete rotated secrets" });
+      }
+
+      throw err;
+    }
+  };
+
   return {
     createSecret,
     deleteSecret,
@@ -3727,6 +3962,10 @@ export const secretV2BridgeServiceFactory = ({
     getSecretVersionsByIds,
     findSecretIdsByFolderIdAndKeys,
     $validateSecretReferences,
-    redactSecretVersionValue
+    redactSecretVersionValue,
+    archiveSecret,
+    restoreSecret,
+    listArchivedSecrets,
+    deleteArchivedSecret
   };
 };
