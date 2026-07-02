@@ -517,6 +517,11 @@ export const secretV2BridgeDALFactory = ({ db, keyStore }: TSecretV2DalArg) => {
           `${TableName.HoneyTokenSecretMapping}.secretId`
         )
         .whereIn("folderId", folderIds)
+        // Exclude archived secrets from the count so it matches findByFolderId(s), which
+        // filter them out — otherwise the dashboard count includes archived secrets while
+        // the fetched rows do not, producing a phantom "NO ACCESS" row (secret never
+        // disappears after archiving).
+        .whereNull(`${TableName.SecretV2}.archivedAt`)
         .where((bd) => {
           if (filters?.search) {
             void bd.whereILike(`${TableName.SecretV2}.key`, `%${filters?.search}%`);
