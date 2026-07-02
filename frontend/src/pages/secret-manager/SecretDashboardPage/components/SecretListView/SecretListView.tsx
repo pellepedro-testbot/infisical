@@ -6,7 +6,7 @@ import { createNotification } from "@app/components/notifications";
 import { CreateTagModal } from "@app/components/tags/CreateTagModal";
 import { DeleteActionModal } from "@app/components/v2";
 import { usePopUp } from "@app/hooks";
-import { useCreateSecretV3, useDeleteSecretV3, useUpdateSecretV3 } from "@app/hooks/api";
+import { useArchiveSecret, useCreateSecretV3, useDeleteSecretV3, useUpdateSecretV3 } from "@app/hooks/api";
 import { dashboardKeys } from "@app/hooks/api/dashboard/queries";
 import { UsedBySecretSyncs } from "@app/hooks/api/dashboard/types";
 import { commitKeys } from "@app/hooks/api/folderCommits/queries";
@@ -22,7 +22,6 @@ import { AddShareSecretModal } from "@app/pages/organization/SecretSharingPage/c
 import {
   PendingSecretChange,
   PendingSecretCreate,
-  PendingSecretDelete,
   PendingSecretUpdate,
   useBatchMode,
   useBatchModeActions,
@@ -86,6 +85,7 @@ export const SecretListView = ({
   const { mutateAsync: deleteSecretV3 } = useDeleteSecretV3({
     options: { onSuccess: undefined }
   });
+  const { mutateAsync: archiveSecret } = useArchiveSecret();
 
   const selectedSecrets = useSelectedSecrets();
   const { toggle: toggleSelectedSecret } = useSelectedSecretActions();
@@ -482,85 +482,18 @@ export const SecretListView = ({
   );
 
   const handleSecretDelete = useCallback(async () => {
-    const {
-      key,
-      id: secretId,
-      value,
-      secretValueHidden,
-      tags,
-      secretMetadata,
-      skipMultilineEncoding,
-      comment
-    } = popUp.deleteSecret?.data as SecretV3RawSanitized;
-    if (isBatchMode) {
-      const secretValueForDelete = value !== undefined ? value : HIDDEN_SECRET_VALUE_API_MASK;
+    const { id: secretId } = popUp.deleteSecret?.data as SecretV3RawSanitized;
 
-      const deleteChange: PendingSecretDelete = {
-        id: `${secretId}`,
-        type: PendingAction.Delete,
-        secretKey: key,
-        secretValue: secretValueForDelete,
-        timestamp: Date.now(),
-        resourceType: "secret",
-        secretValueHidden,
-        tags: tags || [],
-        secretMetadata: secretMetadata || [],
-        skipMultilineEncoding: skipMultilineEncoding || false,
-        comment: comment || ""
-      };
-
-      addPendingChange(deleteChange, {
-        projectId,
-        environment,
-        secretPath
-      });
-
-      handlePopUpClose("deleteSecret");
-      handlePopUpClose("secretDetail");
-      return;
-    }
-
-    await handleSecretOperation("delete", SecretType.Shared, key, { secretId });
-    // wrap this in another function and then reuse
-    queryClient.invalidateQueries({
-      queryKey: dashboardKeys.getDashboardSecrets({ projectId, secretPath })
-    });
-    queryClient.invalidateQueries({
-      queryKey: secretKeys.getProjectSecret({ projectId, environment, secretPath })
-    });
-    queryClient.invalidateQueries({
-      queryKey: secretSnapshotKeys.list({
-        projectId,
-        environment,
-        directory: secretPath
-      })
-    });
-    queryClient.invalidateQueries({
-      queryKey: secretSnapshotKeys.count({
-        projectId,
-        environment,
-        directory: secretPath
-      })
-    });
-    queryClient.invalidateQueries({
-      queryKey: commitKeys.count({ projectId, environment, directory: secretPath })
-    });
-    queryClient.invalidateQueries({
-      queryKey: commitKeys.history({ projectId, environment, directory: secretPath })
-    });
-    queryClient.invalidateQueries({
-      queryKey: secretApprovalRequestKeys.count({ projectId })
-    });
-    queryClient.invalidateQueries({
-      queryKey: secretApprovalRequestKeys.listAllForProject({ projectId })
-    });
+    // Archiving is a reversible soft-delete, so it runs immediately regardless of batch
+    // mode. Previously the isBatchMode branch queued a PendingAction.Delete (a permanent
+    // delete) and returned, so this archiveSecret call was dead code on the dashboard
+    // (which is always in batch mode) — the Archive action never hit the archive API.
+    await archiveSecret({ secretId: secretId!, projectId, environment, secretPath });
     handlePopUpClose("deleteSecret");
     handlePopUpClose("secretDetail");
     createNotification({
-      type: isProtectedBranch ? "info" : "success",
-      text: isProtectedBranch
-        ? "Requested changes have been sent for review"
-        : "Successfully deleted secret"
+      type: "success",
+      text: "Secret archived. You can restore it from the Trash tab."
     });
   }, [
     (popUp.deleteSecret?.data as SecretV3RawSanitized)?.key,
@@ -630,10 +563,10 @@ export const SecretListView = ({
       <DeleteActionModal
         isOpen={popUp.deleteSecret.isOpen}
         deleteKey={(popUp.deleteSecret?.data as SecretV3RawSanitized)?.key}
-        title="Do you want to delete this secret?"
+        title="Do you want to archive this secret?"
         onChange={(isOpen) => handlePopUpToggle("deleteSecret", isOpen)}
         onDeleteApproved={handleSecretDelete}
-        buttonText="Delete Secret"
+        buttonText="Archive Secret"
         formContent={
           ((importedBy && importedBy.length > 0) ||
             (usedBySecretSyncs && usedBySecretSyncs?.length > 0)) && (
@@ -650,7 +583,7 @@ export const SecretListView = ({
             <span className="font-bold">
               &quot;{(popUp.deleteSecret?.data as SecretV3RawSanitized)?.key}&quot;
             </span>{" "}
-            to perform this action
+            to archive. You can restore it later from Trash.
           </>
         }
       />
